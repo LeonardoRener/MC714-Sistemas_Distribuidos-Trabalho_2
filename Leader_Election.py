@@ -44,11 +44,8 @@ def log(string):
 if __name__ == '__main__':
     comm = MPI.COMM_WORLD
 
-    # Recebe o lider inicial, atravez do argumento da linha de comando.
-    try:
-        initialLeader = int(argvImagemEntrada = sys.argv[1])
-    except:
-        initialLeader = comm.Get_size()-1
+    # Define o processo com maior rank como o lider inicial:
+    initialLeader = comm.Get_size()-1
     
     process = ProcessClass(size=comm.Get_size(), rank=comm.Get_rank(), leader=initialLeader)
 
