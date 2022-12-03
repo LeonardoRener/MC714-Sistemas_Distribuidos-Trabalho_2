@@ -47,6 +47,7 @@ def send(lamport):
 
 # Recebe mensagens de todos os outros processos.
 def recv(lamport):
+    log("RANK {} - Aguardando mensagens...".format(lamport.rank))
     while True:
         lamport.receive()
 
