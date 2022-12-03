@@ -18,18 +18,11 @@ class Lamport:
     # Envia o valor do clock para o processo destino
     def event(self, dest):
         self.clock += 1
-        log("SEND - rank {} sent to rank {}, clock={}".format(self.rank, dest, self.clock))
+        log("SEND - Rank {} enviou para o rank {}, clock={}".format(self.rank, dest, self.clock))
         MPI.COMM_WORLD.send(self.clock, dest=dest)
 
-    # Recebe o valor do clock, se é maior que o proprio relogio então atualiza, do contrario mantem o relogio.
-    def receive(self):
-        recv_clock = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status) + 1
-
-        if (self.clock > recv_clock):
-            log("RECEIVE - rank {} received from rank {}, kept the clock={}".format(self.rank, status.Get_source(), self.clock))
-        else:
-            self.clock = recv_clock
-            log("RECEIVE - rank {} received from rank {}, new clock={}".format(self.rank, status.Get_source(), self.clock))
+    def receive(self, dest, tag):
+        return MPI.COMM_WORLD.recv(source=dest, tag=tag, status=status)
 
 # Funcao para imprimir no console.
 def log(string):
@@ -38,7 +31,7 @@ def log(string):
 
 # Envia mensagem para todos os outros processos, exeto para ele mesmo.
 def send(lamport):
-    random.seed(lamport.rank)
+    
     while True:
         dest = random.choice([i for i in range(0,lamport.size) if i not in [lamport.rank]])
         time.sleep(random.randint(1,20))
@@ -54,18 +47,35 @@ def recv(lamport):
 status = MPI.Status()
 
 if __name__ == '__main__':
-
+    
     comm = MPI.COMM_WORLD
-    lamport = Lamport(size=comm.Get_size(), rank=comm.Get_rank())
+    process = Lamport(size=comm.Get_size(), rank=comm.Get_rank())
 
-    # Cria as threads para receber e envia o clock atual
-    p1 = Process(target=send, args=(lamport,))
-    p2 = Process(target=recv, args=(lamport,))
+    random.seed(process.rank)
+    timeToSend = random.randint(5,20)
+    initialTime = time.time()
 
-    # Inicia as threads
-    p1.start()
-    p2.start()
+    while True:
+        # De tempos em tempos envia um evento para um processo aleatorio.
+        if (time.time() - initialTime) > timeToSend:
+            dest = random.choice([i for i in range(0,process.size) if i not in [process.rank]])
+            timeToSend = random.randint(5,20)
+            initialTime = time.time()
+            process.event(dest)
+        
+        # Se não recebeu nenhuma mensagem, continua a execusao:
+        if not comm.Iprobe(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG):
+            time.sleep(1)
 
-    # Espera as threads terminarem
-    p1.join()
-    p2.join()
+        # Se recebeu uma mensagem, verifica se precisa atualizar seu clock:
+        else:
+            recv_clock = process.receive(MPI.ANY_SOURCE, MPI.ANY_TAG) + 1
+
+            # Se o clock atual eh maior que o recebido:
+            if (process.clock > recv_clock):
+                log("\nRECEIVE - Rank {} recebeu uma mensagem de {}, manteu seu clock como {}\n".format(process.rank, status.Get_source(), process.clock))
+            
+            # Do contrario:
+            else:
+                process.clock = recv_clock
+                log("\nRECEIVE - Rank {} recebeu uma mensagem de {}, atualizou o clock para {}\n".format(process.rank, status.Get_source(), process.clock))
