@@ -19,7 +19,7 @@ class SharedResource():
         return self.value
 
     def setValue(self, newValue):
-        log("\nShared resource changed from {} to {}\n".format(self.value, newValue))
+        log("\nAlterado recurso compartilhado de {} para {}\n".format(self.value, newValue))
         self.value = newValue
 
 # Classe que representa os processos existentes, o processo 0 é eleito coordenador.
@@ -36,7 +36,7 @@ def sendRequests(process):
     random.seed(process.rank)
     while True:
         time.sleep(random.randint(1,20))
-        log("RANK {} - Requesting access to the resource".format(process.rank))
+        log("RANK {} - Solicitando acesso ao recurso".format(process.rank))
 
         # Envia a solicitação de uso.
         MPI.COMM_WORLD.send(None, dest=0, tag=MessageType.MUTEX_REQUEST)
@@ -63,22 +63,22 @@ def coodinatorControll():
         if status.Get_tag() ==  MessageType.MUTEX_REQUEST:
             if not busy:
                 busy = True
-                log("COODINATOR - Sharing the resource with {}.".format(status.Get_source()))
+                log("COORDENADOR - Compartilhando o recurso com {}.".format(status.Get_source()))
                 MPI.COMM_WORLD.send(sharedResource, status.Get_source(), tag=MessageType.MUTEX_CONCESSION)
             else:
-                log("COODINATOR - {} queued to access the resource.".format(status.Get_source()))
+                log("COORDENADOR - Rank {} esta na fila para acessar o recurso.".format(status.Get_source()))
                 queue.put(status.Get_source())
 
         # Trata a liberação do uso do recurso.
         elif status.Get_tag() == MessageType.MUTEX_FREE:
-            log("COODINATOR - {} has finished using the resource.".format(status.Get_source()))
+            log("COORDENADOR - {} terminou de usar o recurso.".format(status.Get_source()))
             sharedResource = message
 
             if queue.empty():
                 busy = False
             else:
                 dest = queue.get()
-                log("COODINATOR - Sharing the resource with {}.".format(dest))
+                log("COORDENADOR - Compartilhando o recurso com {}.".format(dest))
                 MPI.COMM_WORLD.send(sharedResource, dest=dest, tag=MessageType.MUTEX_CONCESSION)
 
 # Funcao para imprimir no console.
